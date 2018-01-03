@@ -1,0 +1,148 @@
+Parameters:
+  DatabasePassword:
+    Type: String
+    Default: secretpassword
+    Description: Database Password used for MongoDB Administrator User
+  DatabaseName:
+    Type: String
+    Default: stelligent
+    Description: Database Name to be created in MongoDB
+  DatabaseUserName:
+    Type: String
+    Default: stelligent
+    Description: Database Admin username to be created for MongoDB
+  DatabaseInstanceSize:
+    Type: String
+    Default: t2.medium
+    Description: Instance Size to launch from
+  BaseAMI:
+    Type: String
+    Default: ami-55ef662f
+    Description: Base AMI to build from (should be Amazon Linux)
+Resources:
+  MongoAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        SubnetIds:
+          Fn::Split:
+            - ","
+            - Fn::ImportValue: !Sub ${InstanceSubnetIds}
+      LaunchConfigurationName: !Ref MongoInstances
+      MinSize: 1
+      MaxSize: 1
+      DesiredCapacity: 1
+      Tags:
+      - Key: Name
+        Value: !Ref AWS::StackName
+        PropagateAtLaunch: true
+  MongoSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable access to Mongo"
+      VpcId:
+        Fn::ImportValue: !Sub ${VpcId}
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "27017"
+          ToPort: "27017"
+          SourceSecurityGroupId:
+            Fn::ImportValue: !Sub ${InstanceSecurityGroup}
+  MongoInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          SetupRunConfigure:
+            - "Setup"
+            - "Install"
+        Setup:
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - "/etc/cfn/cfn-hup.conf"
+                  - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+              mode: '000400'
+              owner: root
+              group: root
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MongoInstances --configsets SetupRunConfigure --region ${AWS::Region}
+                runas=root
+            "/etc/yum.repos.d/mongodb-org-3.0.repo":
+              content: !Sub |
+                [mongodb-org-3.0]
+                name=MongoDB Repository
+                baseurl=https://repo.mongodb.org/yum/amazon/2013.03/mongodb-org/3.0/x86_64/
+                gpgcheck=0
+                enabled=1
+              mode: '000400'
+              owner: root
+              group: root
+        Install:
+          packages:
+            yum:
+              mongodb-org: []
+          files:
+            "/etc/mongod.conf":
+              content: !Sub |
+                # mongod.conf
+
+                # where to write logging data.
+                systemLog:
+                  destination: file
+                  logAppend: true
+                  path: /var/log/mongodb/mongod.log
+
+                # Where and how to store data.
+                storage:
+                  dbPath: /var/lib/mongo
+                  journal:
+                    enabled: true
+
+                # how the process runs
+                processManagement:
+                  fork: true  # fork and run in background
+                  pidFilePath: /var/run/mongodb/mongod.pid  # location of pidfile
+
+                # network interfaces
+                net:
+                  port: 27017
+
+                security:
+                  authorization: 'enabled'
+              mode: '000644'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              mongod:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - "/etc/mongod.conf"
+
+    Properties:
+      ImageId: !Ref BaseAMI
+      SecurityGroups: !Ref MongoSG
+      InstanceType: !Ref DatabaseInstanceSize
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MongoInstances --configsets SetupRunConfigure --region ${AWS::Region}
+
+          # Create Admin User
+          /usr/bin/mongo admin --eval "db.createUser({ user: '${DatabaseUserName}', pwd: '${DatabasePassword}', roles: [ { role: 'root', db: 'admin' } ] });"
