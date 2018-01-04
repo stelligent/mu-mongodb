@@ -33,12 +33,6 @@ Parameters:
   VpcId:
     Type: String
     Description: Name of the value to import for the VpcId
-  EcsSubnetIds:
-    Type: String
-    Description: Name of the value to import for the ecs subnet ids
-  EcsInstanceSecurityGroup:
-    Type: String
-    Description: Name of the value to import for the ecs security group id
 Resources:
   MongoSG:
     Type: AWS::EC2::SecurityGroup
