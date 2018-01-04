@@ -1,20 +1,23 @@
 Parameters:
+  DatabaseEngine:
+    Type: String
+    Description: Engine for database
+    Default: mongodb
   DatabaseMasterPassword:
     Type: String
-    Default: secretpassword
+    NoEcho: true
     Description: Database Password used for MongoDB Administrator User
   DatabaseName:
     Type: String
-    Default: stelligent
-    Description: Database Name to be created in MongoDB
+    Description: Name of database
   DatabaseMasterUsername:
     Type: String
-    Default: stelligent
-    Description: Database Admin username to be created for MongoDB
-  DatabaseInstanceSize:
+    Description: Username of database
+    Default: admin
+  DatabaseInstanceClass:
     Type: String
+    Description: Instance class for database
     Default: t2.medium
-    Description: Instance Size to launch from
   DatabasePort:
     Type: String
     Default: 27017
@@ -23,9 +26,22 @@ Parameters:
     Type: String
     Default: ami-55ef662f
     Description: Base AMI to build from (should be Amazon Linux)
+  DatabaseStorage:
+    Type: Number
+    Description: Allocated storage for DB
+    Default: 100
+  VpcId:
+    Type: String
+    Description: Name of the value to import for the VpcId
+  EcsSubnetIds:
+    Type: String
+    Description: Name of the value to import for the ecs subnet ids
+  EcsInstanceSecurityGroup:
+    Type: String
+    Description: Name of the value to import for the ecs security group id
 Resources:
   MongoSG:
-    Type: "AWS::EC2::SecurityGroup"
+    Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "Enable access to Mongo"
       VpcId:
@@ -126,7 +142,7 @@ Resources:
       ImageId: !Ref BaseAMI
       SecurityGroupIds:
         - Ref: "MongoSG"
-      InstanceType: !Ref DatabaseInstanceSize
+      InstanceType: !Ref DatabaseInstanceClass
       SubnetId:
         Fn::Select:
           - 0
