@@ -33,6 +33,15 @@ Parameters:
   VpcId:
     Type: String
     Description: Name of the value to import for the VpcId
+  InstanceSubnetIds:
+    Type: String
+    Description: Name of the value to import for the subnet ids
+  InstanceSecurityGroup:
+    Type: String
+    Description: Name of the value to import for the security group id
+  DatabaseKeyArn:
+    Type: String
+    Description: KMS key for Database
 Resources:
   MongoSG:
     Type: AWS::EC2::SecurityGroup
