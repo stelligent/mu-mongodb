@@ -45,13 +45,17 @@ Resources:
     Properties:
       GroupDescription: "Enable access to Mongo"
       VpcId:
-        Fn::ImportValue: !Sub ${VpcId}
+        Fn::ImportValue:
+          Fn::Sub: ${VpcId}
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: !Ref DatabasePort
-          ToPort: !Ref DatabasePort
+          FromPort:
+            Ref: DatabasePort
+          ToPort:
+            Ref: DatabasePort
           SourceSecurityGroupId:
-            Fn::ImportValue: !Sub ${InstanceSecurityGroup}
+            Fn::ImportValue:
+              Fn::Sub: ${InstanceSecurityGroup}
   MongoDbInstance:
     Type: AWS::EC2::Instance
     Metadata:
@@ -71,27 +75,30 @@ Resources:
                   - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
           files:
             "/etc/cfn/cfn-hup.conf":
-              content: !Sub |
-                [main]
-                stack=${AWS::StackId}
-                region=${AWS::Region}
+              content:
+                Fn::Sub: |
+                  [main]
+                  stack=${AWS::StackId}
+                  region=${AWS::Region}
               mode: '000400'
               owner: root
               group: root
             "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
-              content: !Sub |
-                [cfn-auto-reloader-hook]
-                triggers=post.update
-                path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MongoDbInstance --configsets SetupAndInstall --region ${AWS::Region}
-                runas=root
+              content:
+                Fn::Sub: |
+                  [cfn-auto-reloader-hook]
+                  triggers=post.update
+                  path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
+                  action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MongoDbInstance --configsets SetupAndInstall --region ${AWS::Region}
+                  runas=root
             "/etc/yum.repos.d/mongodb-org-3.0.repo":
-              content: !Sub |
-                [mongodb-org-3.0]
-                name=MongoDB Repository
-                baseurl=https://repo.mongodb.org/yum/amazon/2013.03/mongodb-org/3.0/x86_64/
-                gpgcheck=0
-                enabled=1
+              content:
+                Fn::Sub: |
+                  [mongodb-org-3.0]
+                  name=MongoDB Repository
+                  baseurl=https://repo.mongodb.org/yum/amazon/2013.03/mongodb-org/3.0/x86_64/
+                  gpgcheck=0
+                  enabled=1
               mode: '000400'
               owner: root
               group: root
@@ -101,32 +108,33 @@ Resources:
               mongodb-org: []
           files:
             "/etc/mongod.conf":
-              content: !Sub |
-                # mongod.conf
+              content:
+                Fn::Sub: |
+                  # mongod.conf
 
-                # where to write logging data.
-                systemLog:
-                  destination: file
-                  logAppend: true
-                  path: /var/log/mongodb/mongod.log
+                  # where to write logging data.
+                  systemLog:
+                    destination: file
+                    logAppend: true
+                    path: /var/log/mongodb/mongod.log
 
-                # Where and how to store data.
-                storage:
-                  dbPath: /var/lib/mongo
-                  journal:
-                    enabled: true
+                  # Where and how to store data.
+                  storage:
+                    dbPath: /var/lib/mongo
+                    journal:
+                      enabled: true
 
-                # how the process runs
-                processManagement:
-                  fork: true  # fork and run in background
-                  pidFilePath: /var/run/mongodb/mongod.pid  # location of pidfile
+                  # how the process runs
+                  processManagement:
+                    fork: true  # fork and run in background
+                    pidFilePath: /var/run/mongodb/mongod.pid  # location of pidfile
 
-                # network interfaces
-                net:
-                  port: ${DatabasePort}
+                  # network interfaces
+                  net:
+                    port: ${DatabasePort}
 
-                security:
-                  authorization: 'enabled'
+                  security:
+                    authorization: 'enabled'
               mode: '000644'
               owner: root
               group: root
@@ -139,30 +147,36 @@ Resources:
                   - "/etc/mongod.conf"
 
     Properties:
-      ImageId: !Ref BaseAMI
+      ImageId:
+        Ref: BaseAMI
       SecurityGroupIds:
         - Ref: "MongoSG"
-      InstanceType: !Ref DatabaseInstanceClass
+      InstanceType:
+        Ref: DatabaseInstanceClass
       SubnetId: !Select
           - '0'
-          - Fn::ImportValue: !Sub ${InstanceSubnetIds}
+          - Fn::ImportValue:
+              Fn::Sub: ${InstanceSubnetIds}
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash -xe
-          yum install -y aws-cfn-bootstrap
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MongoDbInstance --configsets SetupAndInstall --region ${AWS::Region}
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash -xe
+            yum install -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MongoDbInstance --configsets SetupAndInstall --region ${AWS::Region}
 
-          # Create Database User
-          /usr/bin/mongo admin --eval "db.createUser({ user: '${DatabaseMasterUsername}', pwd: '${DatabaseMasterPassword}', roles: [ { role: 'root', db: 'admin' } ] });"
+            # Create Database User
+            /usr/bin/mongo admin --eval "db.createUser({ user: '${DatabaseMasterUsername}', pwd: '${DatabaseMasterPassword}', roles: [ { role: 'root', db: 'admin' } ] });"
 
 
 Outputs:
   DatabaseName:
     Description: DB Name
-    Value: !Ref DatabaseName
+    Value:
+      Ref: DatabaseName
   DatabaseMasterUsername:
     Description: DB Username
-    Value: !Ref DatabaseMasterUsername
+    Value:
+      Ref: DatabaseMasterUsername
   DatabaseEndpointAddress:
     Description: DB Endpoint Address
     Value:
@@ -171,4 +185,5 @@ Outputs:
       - "PublicIp"
   DatabaseEndpointPort:
     Description: DB Endpoint Port
-    Value: !Ref DatabasePort
+    Value:
+      Ref: DatabasePort
