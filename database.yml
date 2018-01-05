@@ -154,7 +154,7 @@ Resources:
       InstanceType:
         Ref: DatabaseInstanceClass
       SubnetId:
-        Fn:Select:
+        Fn::Select:
           - '0'
           - Fn::ImportValue:
               Fn::Sub: ${InstanceSubnetIds}
