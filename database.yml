@@ -153,7 +153,8 @@ Resources:
         - Ref: "MongoSG"
       InstanceType:
         Ref: DatabaseInstanceClass
-      SubnetId: !Select
+      SubnetId:
+        Fn:Select:
           - '0'
           - Fn::ImportValue:
               Fn::Sub: ${InstanceSubnetIds}
