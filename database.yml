@@ -34,7 +34,7 @@ Parameters:
     Type: String
     Description: Name of the value to import for the VpcId
   InstanceSubnetIds:
-    Type: CommaDelimitedList
+    Type: String
     Description: Name of the value to import for the subnet ids
   InstanceSecurityGroup:
     Type: String
