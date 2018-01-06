@@ -18,10 +18,6 @@ Parameters:
     Type: String
     Description: Instance class for database
     Default: t2.medium
-  DatabasePort:
-    Type: String
-    Default: 27017
-    Description: Port to bind the MongoDB service to
   BaseAMI:
     Type: String
     Default: ami-55ef662f
@@ -39,23 +35,48 @@ Parameters:
   InstanceSecurityGroup:
     Type: String
     Description: Name of the value to import for the security group id
+  DatabaseKeyArn:
+    Type: String
+    Description: KMS key for Database
 Resources:
-  MongoSG:
+  MongoDBServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: "Enable access to Mongo"
       VpcId:
         Fn::ImportValue:
           Fn::Sub: ${VpcId}
+      GroupDescription: MongoDB server management and access ports
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort:
-            Ref: DatabasePort
-          ToPort:
-            Ref: DatabasePort
-          SourceSecurityGroupId:
-            Fn::ImportValue:
-              Fn::Sub: ${InstanceSecurityGroup}
+      - IpProtocol: tcp
+        FromPort: '27017'
+        ToPort: '27030'
+        SourceSecurityGroupId:
+          Fn::ImportValue:
+            Fn::Sub: ${InstanceSecurityGroup}
+      - IpProtocol: tcp
+        FromPort: '28017'
+        ToPort: '28017'
+        SourceSecurityGroupId:
+          Fn::ImportValue:
+            Fn::Sub: ${InstanceSecurityGroup}
+  MongoDBServersSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: ${VpcId}
+      GroupDescription: MongoDB inter-server communication and management ports
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '27017'
+        ToPort: '27030'
+        SourceSecurityGroupId:
+          Ref: MongoDBServerSecurityGroup
+      - IpProtocol: tcp
+        FromPort: '28017'
+        ToPort: '28017'
+        SourceSecurityGroupId:
+          Ref: MongoDBServerSecurityGroup
   MongoDbInstance:
     Type: AWS::EC2::Instance
     Metadata:
@@ -131,7 +152,7 @@ Resources:
 
                   # network interfaces
                   net:
-                    port: ${DatabasePort}
+                    port: 27017
 
                   security:
                     authorization: 'enabled'
@@ -150,7 +171,8 @@ Resources:
       ImageId:
         Ref: BaseAMI
       SecurityGroupIds:
-        - Ref: "MongoSG"
+        - Ref: MongoDBServerSecurityGroup
+        - Ref: MongoDBServersSecurityGroup
       InstanceType:
         Ref: DatabaseInstanceClass
       SubnetId:
@@ -188,5 +210,4 @@ Outputs:
       - "PrivateIp"
   DatabaseEndpointPort:
     Description: DB Endpoint Port
-    Value:
-      Ref: DatabasePort
+    Value: '27017'
