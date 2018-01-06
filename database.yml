@@ -159,7 +159,7 @@ Resources:
           - Fn::Split:
               - ","
               - Fn::ImportValue:
-                  Fn::Sub: ${InstanceSecurityGroup}
+                  Fn::Sub: ${InstanceSubnetIds}
       UserData:
         Fn::Base64:
           Fn::Sub: |
