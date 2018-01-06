@@ -156,7 +156,10 @@ Resources:
       SubnetId:
         Fn::Select:
           - '0'
-          - Ref: InstanceSubnetIds
+          - Fn::Split:
+              - ","
+              - Fn::ImportValue:
+                  Fn::Sub: ${InstanceSecurityGroup}
       UserData:
         Fn::Base64:
           Fn::Sub: |
