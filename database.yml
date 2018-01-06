@@ -185,7 +185,7 @@ Outputs:
     Value:
       Fn::GetAtt:
       - "MongoDbInstance"
-      - "PublicIp"
+      - "PrivateIp"
   DatabaseEndpointPort:
     Description: DB Endpoint Port
     Value:
