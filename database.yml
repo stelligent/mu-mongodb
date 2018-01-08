@@ -18,10 +18,10 @@ Parameters:
     Type: String
     Description: Instance class for database
     Default: t2.medium
-  BaseAMI:
+  ImageId:
+    Description: ECS AMI to launch
     Type: String
-    Default: ami-55ef662f
-    Description: Base AMI to build from (should be Amazon Linux)
+    Default: ''
   DatabaseStorage:
     Type: Number
     Description: Allocated storage for DB
@@ -77,6 +77,18 @@ Resources:
         ToPort: '28017'
         SourceSecurityGroupId:
           Ref: MongoDBServerSecurityGroup
+      - IpProtocol: tcp
+        FromPort: '27017'
+        ToPort: '27030'
+        SourceSecurityGroupId:
+          Fn::ImportValue:
+            Fn::Sub: ${InstanceSecurityGroup}
+      - IpProtocol: tcp
+        FromPort: '28017'
+        ToPort: '28017'
+        SourceSecurityGroupId:
+          Fn::ImportValue:
+            Fn::Sub: ${InstanceSecurityGroup}
   MongoDbInstance:
     Type: AWS::EC2::Instance
     Metadata:
@@ -128,6 +140,22 @@ Resources:
             yum:
               mongodb-org: []
           files:
+            "/tmp/mongo_user.js":
+              content:
+                Fn::Sub: |
+                  use ${DatabaseName}
+                  db.createUser(
+                    {
+                      user: "${DatabaseMasterUsername}",
+                      pwd: "${DatabaseMasterPassword}",
+                      roles: [
+                        { role: "dbOwner", db: "${DatabaseName}" },
+                      ]
+                    }
+                  )
+              mode: '000644'
+              owner: root
+              group: root
             "/etc/mongod.conf":
               content:
                 Fn::Sub: |
@@ -153,9 +181,6 @@ Resources:
                   # network interfaces
                   net:
                     port: 27017
-
-                  security:
-                    authorization: 'enabled'
               mode: '000644'
               owner: root
               group: root
@@ -169,7 +194,7 @@ Resources:
 
     Properties:
       ImageId:
-        Ref: BaseAMI
+        Ref: ImageId
       SecurityGroupIds:
         - Ref: MongoDBServerSecurityGroup
         - Ref: MongoDBServersSecurityGroup
@@ -190,8 +215,7 @@ Resources:
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MongoDbInstance --configsets SetupAndInstall --region ${AWS::Region}
 
             # Create Database User
-            /usr/bin/mongo admin --eval "db.createUser({ user: '${DatabaseMasterUsername}', pwd: '${DatabaseMasterPassword}', roles: [ { role: 'root', db: 'admin' } ] });"
-
+            /usr/bin/mongo < /tmp/mongo_user.js
 
 Outputs:
   DatabaseName:
